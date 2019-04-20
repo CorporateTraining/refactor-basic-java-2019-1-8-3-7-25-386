@@ -14,41 +14,38 @@ public class Receipt {
 
     public double CalculateGrandTotal(List<Product> products, List<OrderItem> items) {
         BigDecimal subTotal = calculateSubtotal(products, items);
-
-        for (Product product : products) {
-            OrderItem curItem = findOrderItemByProduct(items, product);
-
-            BigDecimal reducedPrice = product.getPrice()
-                    .multiply(product.getDiscountRate())
-                    .multiply(new BigDecimal(curItem.getCount()));
-
-            subTotal = subTotal.subtract(reducedPrice);
-        }
+        BigDecimal reducedPrice = calculateReducedPrice(products, items);
+        subTotal = subTotal.subtract(reducedPrice);
         BigDecimal taxTotal = subTotal.multiply(tax);
         BigDecimal grandTotal = subTotal.add(taxTotal);
 
         return grandTotal.setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 
+    private BigDecimal calculateReducedPrice(List<Product> products, List<OrderItem> items) {
+
+        return products.stream().map(product -> {
+            OrderItem curItem = findOrderItemByProduct(items, product);
+            return product.getPrice()
+                    .multiply(product.getDiscountRate())
+                    .multiply(new BigDecimal(curItem.getCount()));
+        }).reduce(BigDecimal::add).get();
+    }
+
 
     private OrderItem findOrderItemByProduct(List<OrderItem> items, Product product) {
-        OrderItem curItem = null;
-        for (OrderItem item : items) {
-            if (item.getCode() == product.getCode()) {
-                curItem = item;
-                break;
-            }
-        }
-        return curItem;
+
+        return items.stream()
+                .filter(item -> item.getCode() == product.getCode())
+                .findFirst()
+                .get();
     }
 
     private BigDecimal calculateSubtotal(List<Product> products, List<OrderItem> items) {
-        BigDecimal subTotal = new BigDecimal(0);
-        for (Product product : products) {
+
+        return products.stream().map(product -> {
             OrderItem item = findOrderItemByProduct(items, product);
-            BigDecimal itemTotal = product.getPrice().multiply(new BigDecimal(item.getCount()));
-            subTotal = subTotal.add(itemTotal);
-        }
-        return subTotal;
+            return product.getPrice().multiply(new BigDecimal(item.getCount()));
+        }).reduce(BigDecimal::add).get();
     }
 }
